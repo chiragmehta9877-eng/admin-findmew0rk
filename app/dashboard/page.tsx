@@ -135,7 +135,8 @@ export default function DashboardOverview() {
                         <BarChart data={topJobs} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9"/>
                             <XAxis type="number" hide />
-                            <YAxis dataKey="job_title" type="category" width={150} tick={{fontSize: 12, fill: '#64748b'}} width={180} />
+                            {/* 👇 FIXED: Removed duplicate width attribute here */}
+                            <YAxis dataKey="job_title" type="category" width={180} tick={{fontSize: 12, fill: '#64748b'}} />
                             <RechartsTooltip 
                                 cursor={{fill: '#f8fafc'}}
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
