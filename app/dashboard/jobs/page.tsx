@@ -64,7 +64,7 @@ export default function SuperAdminDashboard() {
   };
 
   const fixDatabaseLinks = async () => {
-    if (!confirm("⚠️ Isse saari purani jobs ke links fix ho jayenge. Kya aap sure hain?")) return;
+    if (!confirm("⚠️ This will fix all the old job links. Are you sure?")) return;
     setLoading(true);
     try {
       const res = await fetch('/api/jobs', { method: 'PATCH' });
