@@ -1,25 +1,29 @@
 "use client";
-import { useState } from "react"; // State chahiye menu toggle ke liye
+import { useState } from "react"; 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { 
-  FiHome, FiLogOut, FiBriefcase, FiSettings, FiMenu, FiX 
-} from "react-icons/fi";
+  FiHome, FiLogOut, FiBriefcase, FiSettings, FiMenu, FiX, FiMessageSquare 
+} from "react-icons/fi"; // 🔥 FiMessageSquare add kiya icon ke liye
 
 const menuItems = [
+  // ✅ Wapis Old URLs kar diye
   { name: "Overview", icon: FiHome, href: "/dashboard" },
   { name: "Manage Jobs", icon: FiBriefcase, href: "/dashboard/jobs" },
   { name: "Settings", icon: FiSettings, href: "/dashboard/settings" },
+  
+  // 🔥 New Button (Admin messages page ke liye)
+  { name: "Enquiries", icon: FiMessageSquare, href: "/messages" }, 
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false); // Mobile Menu State
+  const [isOpen, setIsOpen] = useState(false); 
 
   return (
     <>
-      {/* 🔥 MOBILE HEADER (Sirf Mobile pe dikhega) */}
+      {/* 🔥 MOBILE HEADER */}
       <div className="md:hidden fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 className="text-lg font-bold text-gray-800">
             FindMe<span className="text-teal-600">Work</span>
@@ -29,7 +33,7 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* 🔥 OVERLAY (Jab mobile menu khulega, peeche ka dhundhla ho jayega) */}
+      {/* 🔥 OVERLAY */}
       {isOpen && (
         <div 
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -50,7 +54,6 @@ export default function Sidebar() {
           <h1 className="text-xl font-bold text-gray-800 tracking-tight">
             FindMe<span className="text-teal-600">Work</span>
           </h1>
-          {/* Close Button (Mobile Only) */}
           <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-500 hover:text-red-500">
             <FiX size={24} />
           </button>
@@ -64,7 +67,7 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setIsOpen(false)} // Mobile pe click karte hi menu band ho jaye
+                onClick={() => setIsOpen(false)} 
                 className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all ${
                   isActive
                     ? "bg-gray-100 text-teal-700"
