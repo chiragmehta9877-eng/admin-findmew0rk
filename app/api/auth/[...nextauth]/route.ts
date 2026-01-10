@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   session: {
-    strategy: "jwt", // 🔥 Middleware ke liye JWT strategy zaruri hai
+    strategy: "jwt",
   },
   providers: [
     GoogleProvider({
@@ -37,12 +37,13 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    // 🔥 1. JWT Callback (Ye naya hai - Middleware isi ko padhta hai)
+    // 🔥 1. JWT Callback (Fixed TypeScript Error here)
     async jwt({ token, user }) {
       // Jab user pehli baar login karega
       if (user) {
-        token.role = user.role; // Credentials login se role mil jayega
-        token.id = user._id;
+        // 👇 FIX: (user as any) lagaya taaki TypeScript role ko pehchan le
+        token.role = (user as any).role;
+        token.id = (user as any)._id;
       }
       
       // Google Login walo ke liye DB se role confirm karo
@@ -50,18 +51,19 @@ export const authOptions: NextAuthOptions = {
           await connectToDB();
           const dbUser = await User.findOne({ email: token.email });
           if (dbUser) {
-              token.role = dbUser.role;
-              token.id = dbUser._id;
+              // 👇 FIX: Yahan bhi (dbUser as any) safety ke liye
+              token.role = (dbUser as any).role;
+              token.id = (dbUser as any)._id;
           }
       }
       return token;
     },
 
-    // 🔥 2. Session Callback (Frontend isi ko padhta hai)
+    // 🔥 2. Session Callback
     async session({ session, token }) {
       if (session?.user) {
         // @ts-ignore
-        session.user.role = token.role; // Token se role utha kar session me daalo
+        session.user.role = token.role; 
         // @ts-ignore
         session.user.id = token.id;
       }
