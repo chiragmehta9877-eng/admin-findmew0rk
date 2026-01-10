@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FiMail, FiLock, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
 import { FcGoogle } from "react-icons/fc";
 
-export default function LoginPage() {
+// 1. Create a separate component for the form logic that uses searchParams
+function LoginForm() {
   const router = useRouter();
   const { status } = useSession();
   const searchParams = useSearchParams();
-  const errorMsg = searchParams.get("error"); // URL se error pakdo
+  const errorMsg = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +22,6 @@ export default function LoginPage() {
     if (status === "authenticated") router.push("/dashboard");
   }, [status, router]);
 
-  // Handle Specific NextAuth Errors
   useEffect(() => {
     if (errorMsg === "AccessDenied") {
         setUiError("Access Denied! Your account is either blocked or does not exist.");
@@ -52,12 +52,6 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden">
-      
-      {/* Background Decoration */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
-
       <div className="bg-white/80 backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full max-w-md border border-white/50 relative z-10">
         
         {/* Header */}
@@ -133,6 +127,23 @@ export default function LoginPage() {
         </div>
 
       </div>
+  );
+}
+
+// 2. Main Page Component wraps the Form in Suspense
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden">
+      
+      {/* Background Decoration */}
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+
+      {/* 3. Suspense Boundary Added Here */}
+      <Suspense fallback={<div className="text-slate-500 animate-pulse">Loading Login...</div>}>
+        <LoginForm />
+      </Suspense>
+
     </div>
   );
 }
