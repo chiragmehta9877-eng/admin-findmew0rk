@@ -11,8 +11,8 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -25,8 +25,13 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing email or password");
         }
         await connectToDB();
-        const user = await User.findOne({ email: credentials.email }).select("+password");
+        
+        // 🔥 FIX 1: 'user: any' lagaya hai taaki TypeScript password error na de
+        const user: any = await User.findOne({ email: credentials.email }).select("+password");
+        
         if (!user) throw new Error("User not found!");
+        
+        // Check if password exists (Google login users won't have it)
         if (!user.password) throw new Error("Please login with Google.");
         
         const isMatch = await bcrypt.compare(credentials.password, user.password);
@@ -37,31 +42,30 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    // 🔥 1. JWT Callback (Fixed TypeScript Error here)
+    // 🔥 2. JWT Callback
     async jwt({ token, user }) {
-      // Jab user pehli baar login karega
       if (user) {
-        // 👇 FIX: (user as any) lagaya taaki TypeScript role ko pehchan le
+        // User login hote hi role token me daal do
         token.role = (user as any).role;
         token.id = (user as any)._id;
       }
       
-      // Google Login walo ke liye DB se role confirm karo
+      // Google Login walo ke liye DB check
       if (!token.role && token.email) {
           await connectToDB();
-          const dbUser = await User.findOne({ email: token.email });
+          const dbUser: any = await User.findOne({ email: token.email });
           if (dbUser) {
-              // 👇 FIX: Yahan bhi (dbUser as any) safety ke liye
-              token.role = (dbUser as any).role;
-              token.id = (dbUser as any)._id;
+              token.role = dbUser.role;
+              token.id = dbUser._id;
           }
       }
       return token;
     },
 
-    // 🔥 2. Session Callback
+    // 🔥 3. Session Callback
     async session({ session, token }) {
       if (session?.user) {
+        // Token se session me data copy karo
         // @ts-ignore
         session.user.role = token.role; 
         // @ts-ignore
@@ -70,15 +74,21 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    // 🔥 3. SignIn Check
+    // 🔥 4. SignIn Check (Admin Protection)
     async signIn({ user, account }) {
       await connectToDB();
+      
       if (account?.provider === "credentials") return true;
+      
       if (account?.provider === "google") {
-        const dbUser = await User.findOne({ email: user.email });
-        if (!dbUser) return false;
-        if (dbUser.isActive === false) return false;
+        const dbUser: any = await User.findOne({ email: user.email });
+        
+        if (!dbUser) return false; // Account nahi hai to login fail
+        if (dbUser.isActive === false) return false; // Blocked user
+        
+        // 🔥 SIRF Admin allow karein
         if (dbUser.role !== 'admin' && dbUser.role !== 'super_admin') return false;
+        
         return true;
       }
       return true;
@@ -87,7 +97,8 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/login', 
     error: '/login', 
-  }
+  },
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);
