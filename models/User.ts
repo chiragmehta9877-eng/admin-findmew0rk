@@ -15,6 +15,7 @@ interface IBookmark {
 export interface IUser extends Document {
   name: string;
   email: string;
+  password?: string; // 🔥 Added Password Field
   image?: string;
   role: "super_admin" | "admin" | "user";
   isActive: boolean;
@@ -43,6 +44,7 @@ const UserSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
+    password: { type: String }, // 🔥 Added Password Field to Schema
     image: { type: String },
     role: { type: String, default: "user" },
     isActive: { type: Boolean, default: true },

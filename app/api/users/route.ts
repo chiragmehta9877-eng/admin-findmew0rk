@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import bcrypt from "bcryptjs"; // 🔥 IMPORT BCRYPT
 
 // 1. GET ALL USERS
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
   }
 }
 
-// 2. CREATE USER (POST)
+// 2. CREATE USER (POST) - 🔥 PASSWORD HASHING ADDED
 export async function POST(req: Request) {
   try {
     await connectToDB();
@@ -25,10 +26,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: "Email already exists" }, { status: 400 });
     }
 
-    const newUser = await User.create(body);
+    // 🔥 FIX: Password ko Hash karke save karo
+    const hashedPassword = await bcrypt.hash(body.password, 10);
+
+    const newUser = await User.create({
+        ...body,
+        password: hashedPassword, // Hashed Password Database me jayega
+    });
+
     return NextResponse.json({ success: true, data: newUser });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "Failed to create user" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "Failed to create user: " + error.message }, { status: 500 });
   }
 }
 

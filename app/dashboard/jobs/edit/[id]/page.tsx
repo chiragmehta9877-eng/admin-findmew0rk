@@ -3,6 +3,14 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiSave, FiArrowLeft, FiLoader } from 'react-icons/fi';
 
+const JOB_CATEGORIES = [
+  { name: "All Jobs", value: "job" },
+  { name: "Internships", value: "internship" },
+  { name: "Freelance", value: "freelance" },
+  { name: "Software Engineer", value: "Developer" },
+  { name: "Data Science & AI", value: "Data" },
+];
+
 export default function EditJob({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -27,12 +35,29 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
         
         if (data.success) {
           const job = data.data;
+
+          // 🔥 STEP 1: Check Database Fields
+          let foundLink = job.apply_link || job.job_url || job.url || job.link || '';
+
+          // 🔥 STEP 2: Construct Original Thread Link (Twitter/X) if empty
+          if (!foundLink && job.source === 'twitter' && job.job_id) {
+             const cleanId = job.job_id.includes('__') ? job.job_id.split('__')[0] : job.job_id;
+             const username = job.employer_name ? job.employer_name.replace('@', '') : 'i';
+             foundLink = `https://x.com/${username}/status/${cleanId}`;
+          }
+
+          // 🔥 STEP 3: Fallback - Extract from Text (Regex)
+          if (!foundLink && job.text) {
+             const urlMatch = job.text.match(/(https?:\/\/[^\s]+)/);
+             if (urlMatch) foundLink = urlMatch[0];
+          }
+
           setFormData({
             job_title: job.job_title || '',
             employer_name: job.employer_name || '',
-            category: job.category || 'General',
-            source: job.source || 'linkedin',
-            apply_link: job.apply_link || job.job_url || job.url || job.link || '', 
+            category: job.category || 'job', 
+            source: job.source || 'manual',
+            apply_link: foundLink, 
             text: job.text || ''
           });
         }
@@ -54,9 +79,11 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
     setSaving(true);
     
     try {
-      // 🔥 FIX: Update karte waqt bhi 'Admin' bhej rahe hain
       const payload = {
         ...formData,
+        job_url: formData.apply_link,
+        url: formData.apply_link,
+        link: formData.apply_link,
         updated_by: 'Admin'
       };
 
@@ -107,14 +134,9 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Category</label>
               <select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white">
-                  <option value="ESG">ESG & Sustainability</option>
-                  <option value="Developer">Software Engineer</option>
-                  <option value="Internship">Internships</option>
-                  <option value="Product">Product Management</option>
-                  <option value="Data">Data Science & AI</option>
-                  <option value="Business">Business & Sales</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="General">General/Other</option>
+                  {JOB_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>{cat.name}</option>
+                  ))}
               </select>
             </div>
             <div>
@@ -122,32 +144,33 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
               <select name="source" value={formData.source} onChange={handleChange} className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white">
                   <option value="linkedin">LinkedIn</option>
                   <option value="twitter">Twitter</option>
+                  <option value="manual">Manual / Web</option>
               </select>
             </div>
           </div>
 
           <div>
-             <label className="block text-sm font-bold text-slate-700 mb-2">Apply Link / URL</label>
-             <input 
-               type="text" 
-               name="apply_link" 
-               value={formData.apply_link} 
-               onChange={handleChange} 
-               placeholder="https://..."
-               className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-medium" 
-             />
+              <label className="block text-sm font-bold text-slate-700 mb-2">Apply Link / URL</label>
+              <input 
+                type="text" 
+                name="apply_link" 
+                value={formData.apply_link} 
+                onChange={handleChange} 
+                placeholder="https://..."
+                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-medium" 
+              />
           </div>
 
           <div>
-             <label className="block text-sm font-bold text-slate-700 mb-2">Description / Post Text</label>
-             <textarea name="text" rows={8} value={formData.text} onChange={handleChange} className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+              <label className="block text-sm font-bold text-slate-700 mb-2">Description / Post Text</label>
+              <textarea name="text" rows={8} value={formData.text} onChange={handleChange} className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
 
           <div className="flex justify-end pt-4 border-t border-gray-100 mt-6">
-             <button type="submit" disabled={saving} className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-lg font-bold hover:bg-slate-800 transition-all disabled:opacity-50 shadow-lg shadow-slate-900/20">
-               {saving ? <FiLoader className="animate-spin" /> : <FiSave />} 
-               {saving ? 'Saving...' : 'Save Changes'}
-             </button>
+              <button type="submit" disabled={saving} className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-lg font-bold hover:bg-slate-800 transition-all disabled:opacity-50 shadow-lg shadow-slate-900/20">
+                {saving ? <FiLoader className="animate-spin" /> : <FiSave />} 
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
           </div>
 
         </form>

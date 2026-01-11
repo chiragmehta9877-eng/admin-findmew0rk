@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FiMail, FiLock, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
+import { FiMail, FiLock, FiAlertCircle } from "react-icons/fi";
 import { FcGoogle } from "react-icons/fc";
 
 // 1. Create a separate component for the form logic that uses searchParams

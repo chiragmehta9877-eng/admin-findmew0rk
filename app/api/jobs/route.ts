@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { connectToDB } from "@/lib/mongodb";
 import Job from "@/models/Job";
 
-// GET
+// GET (FETCH ALL JOBS)
 export async function GET() {
   try {
     await connectToDB();
-    const jobs = await Job.find().sort({ posted_at: -1 }).limit(500);
+    
+    // 🔥 FIX: Limit hata diya taaki saare jobs dikhen (Count mismatch fix)
+    const jobs = await Job.find().sort({ posted_at: -1 }); 
+
     return NextResponse.json({ success: true, data: jobs });
   } catch (error) {
     return NextResponse.json({ success: false, error: "Failed to fetch jobs" }, { status: 500 });
@@ -24,7 +27,6 @@ export async function POST(req: Request) {
     }
 
     // 🕵️‍♂️ FORCE NAME LOGIC
-    // Agar frontend se naam aaya to wo, nahi to 'Admin' (Hardcoded)
     let adminName = 'Admin';
     if (body.updated_by && body.updated_by !== 'System') {
         adminName = body.updated_by;
@@ -37,7 +39,6 @@ export async function POST(req: Request) {
       category: body.category || 'General',
       source: body.source || 'manual',
       
-      // 🔥 Yahan hum zabardasti 'Admin' daal rahe hain
       updated_by: adminName, 
 
       apply_link: body.apply_link, 
