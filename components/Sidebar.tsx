@@ -3,18 +3,23 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+// 👇 FiUsers add kiya icon ke liye
 import { 
-  FiHome, FiLogOut, FiBriefcase, FiSettings, FiMenu, FiX, FiMessageSquare 
-} from "react-icons/fi"; // 🔥 FiMessageSquare add kiya icon ke liye
+  FiHome, FiLogOut, FiBriefcase, FiSettings, FiMenu, FiX, FiMessageSquare, FiRefreshCw, FiUsers 
+} from "react-icons/fi"; 
 
 const menuItems = [
-  // ✅ Wapis Old URLs kar diye
   { name: "Overview", icon: FiHome, href: "/dashboard" },
   { name: "Manage Jobs", icon: FiBriefcase, href: "/dashboard/jobs" },
-  { name: "Settings", icon: FiSettings, href: "/dashboard/settings" },
   
-  // 🔥 New Button (Admin messages page ke liye)
+  // 🔥 Users Button (Naya add kiya gaya)
+  { name: "Users", icon: FiUsers, href: "/admin/users" },
+
+  // Refresh Jobs Button
+  { name: "Refresh Jobs", icon: FiRefreshCw, href: "/refresh-jobs" },
+
   { name: "Enquiries", icon: FiMessageSquare, href: "/messages" }, 
+  { name: "Settings", icon: FiSettings, href: "/dashboard/settings" },
 ];
 
 export default function Sidebar() {

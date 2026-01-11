@@ -7,8 +7,12 @@ export interface IJob extends Document {
   employer_logo?: string;
   job_city?: string;
   job_country?: string;
+
+  // 🔥 NEW FIELDS FOR TWITTER/EMAIL LOGIC
+  email?: string;        // Extracted email store karne ke liye
+  work_mode?: string;    // 'remote', 'hybrid', etc.
   
-  // Links
+  // Links (Compatible with all sources)
   apply_link?: string;
   job_url?: string;
   url?: string;
@@ -20,7 +24,7 @@ export interface IJob extends Document {
   posted_at: Date;
   updated_by?: string; 
 
-  // 🔥 NEW: Analytics Fields
+  // Analytics Fields
   views: number;
   clicks: number;
 }
@@ -34,6 +38,11 @@ const JobSchema: Schema = new Schema(
     job_city: { type: String },
     job_country: { type: String },
 
+    // 🔥 Added Email & Work Mode for Filtering
+    email: { type: String },
+    work_mode: { type: String },
+
+    // Link handling
     apply_link: { type: String },
     job_url: { type: String },
     url: { type: String },
@@ -45,7 +54,7 @@ const JobSchema: Schema = new Schema(
     posted_at: { type: Date, default: Date.now },
     updated_by: { type: String, default: 'System' },
 
-    // 🔥 NEW: Real Counters (Default 0)
+    // Analytics
     views: { type: Number, default: 0 },
     clicks: { type: Number, default: 0 },
   },
