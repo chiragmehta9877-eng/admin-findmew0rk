@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiSave, FiArrowLeft, FiLoader } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiLoader, FiExternalLink } from 'react-icons/fi';
 
 const JOB_CATEGORIES = [
   { name: "All Jobs", value: "job" },
@@ -24,7 +24,9 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
     category: '',
     source: '',
     apply_link: '',
-    text: '' 
+    original_post_link: '', // 🔥 Added for Original Post Link
+    text: '',
+    isSpotlight: false 
   });
 
   useEffect(() => {
@@ -36,14 +38,15 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
         if (data.success) {
           const job = data.data;
 
-          // 🔥 STEP 1: Check Database Fields
+          // 🔥 STEP 1: Determine Apply Link
           let foundLink = job.apply_link || job.job_url || job.url || job.link || '';
 
           // 🔥 STEP 2: Construct Original Thread Link (Twitter/X) if empty
-          if (!foundLink && job.source === 'twitter' && job.job_id) {
+          let originalLink = '';
+          if (job.source === 'twitter' && job.job_id) {
              const cleanId = job.job_id.includes('__') ? job.job_id.split('__')[0] : job.job_id;
              const username = job.employer_name ? job.employer_name.replace('@', '') : 'i';
-             foundLink = `https://x.com/${username}/status/${cleanId}`;
+             originalLink = `https://x.com/${username}/status/${cleanId}`;
           }
 
           // 🔥 STEP 3: Fallback - Extract from Text (Regex)
@@ -58,7 +61,9 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
             category: job.category || 'job', 
             source: job.source || 'manual',
             apply_link: foundLink, 
-            text: job.text || ''
+            original_post_link: job.job_url || originalLink, // Populate original link
+            text: job.text || '',
+            isSpotlight: job.isSpotlight || false 
           });
         }
       } catch (error) {
@@ -70,8 +75,9 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
   }, [id]);
 
   const handleChange = (e: any) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+    setFormData(prev => ({ ...prev, [name]: val }));
   };
 
   const handleSubmit = async (e: any) => {
@@ -81,7 +87,8 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
     try {
       const payload = {
         ...formData,
-        job_url: formData.apply_link,
+        // Sync both link fields
+        job_url: formData.original_post_link, // Save original post link here
         url: formData.apply_link,
         link: formData.apply_link,
         updated_by: 'Admin'
@@ -149,16 +156,53 @@ export default function EditJob({ params }: { params: Promise<{ id: string }> })
             </div>
           </div>
 
-          <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Apply Link / URL</label>
-              <input 
-                type="text" 
-                name="apply_link" 
-                value={formData.apply_link} 
+          {/* 🔥 SPOTLIGHT TOGGLE SECTION */}
+          <div className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <div>
+                <h3 className="font-bold text-yellow-800 flex items-center gap-2">
+                ⚡ Spotlight Job
+                </h3>
+                <p className="text-xs text-yellow-600">
+                Enable this to make the job shine on the frontend.
+                </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                type="checkbox" 
+                name="isSpotlight"
+                checked={formData.isSpotlight} 
                 onChange={handleChange} 
-                placeholder="https://..."
-                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-medium" 
-              />
+                className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Apply Link / Email</label>
+                <input 
+                  type="text" 
+                  name="apply_link" 
+                  value={formData.apply_link} 
+                  onChange={handleChange} 
+                  placeholder="mailto: or https://..."
+                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-medium" 
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                   Original Post Link <FiExternalLink />
+                </label>
+                <input 
+                  type="text" 
+                  name="original_post_link" 
+                  value={formData.original_post_link} 
+                  onChange={handleChange} 
+                  placeholder="https://x.com/..."
+                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-600" 
+                />
+            </div>
           </div>
 
           <div>

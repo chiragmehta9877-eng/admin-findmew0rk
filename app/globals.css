@@ -6,11 +6,20 @@
   --foreground: #171717;
 }
 
-/* Force solid background everywhere */
+/* Force solid background everywhere + 🔥 SCROLLBAR FIX */
 html, body {
+  /* 👇 Double Scrollbar Fix Starts */
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Browser ka main scrollbar band */
+  margin: 0;
+  padding: 0;
+  /* 👆 Double Scrollbar Fix Ends */
+
   background-color: #ffffff !important;
   background-image: none !important;
   color: #171717;
+  
   /* Agar grid lines pseudo-elements se aa rahi hain toh unhe chupayega */
   position: relative;
 }

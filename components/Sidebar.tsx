@@ -3,7 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-// 👇 FiUsers add kiya icon ke liye
 import { 
   FiHome, FiLogOut, FiBriefcase, FiSettings, FiMenu, FiX, FiMessageSquare, FiRefreshCw, FiUsers 
 } from "react-icons/fi"; 
@@ -12,10 +11,10 @@ const menuItems = [
   { name: "Overview", icon: FiHome, href: "/dashboard" },
   { name: "Manage Jobs", icon: FiBriefcase, href: "/dashboard/jobs" },
   
-  // 🔥 Users Button (Naya add kiya gaya)
+  // 🔥 Users Button (Added as requested)
   { name: "Users", icon: FiUsers, href: "/admin/users" },
 
-  // Refresh Jobs Button
+  // Refresh Jobs
   { name: "Refresh Jobs", icon: FiRefreshCw, href: "/refresh-jobs" },
 
   { name: "Enquiries", icon: FiMessageSquare, href: "/messages" }, 
@@ -26,9 +25,16 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false); 
 
+  // Function to close sidebar only on mobile
+  const handleLinkClick = () => {
+    if (window.innerWidth < 768) {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <>
-      {/* 🔥 MOBILE HEADER */}
+      {/* 🔥 MOBILE HEADER (Only visible on small screens) */}
       <div className="md:hidden fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 className="text-lg font-bold text-gray-800">
             FindMe<span className="text-teal-600">Work</span>
@@ -38,7 +44,7 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* 🔥 OVERLAY */}
+      {/* 🔥 OVERLAY (Mobile Only) */}
       {isOpen && (
         <div 
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -47,15 +53,15 @@ export default function Sidebar() {
       )}
 
       {/* 🔥 SIDEBAR CONTAINER */}
-      <div className={`
+      <aside className={`
         fixed top-0 left-0 h-screen bg-white border-r border-gray-200 z-50 w-64
-        transition-transform duration-300 ease-in-out
+        transition-transform duration-300 ease-in-out flex flex-col
         ${isOpen ? "translate-x-0" : "-translate-x-full"} 
-        md:translate-x-0 md:static md:block
+        md:translate-x-0 md:sticky md:top-0
       `}>
         
-        {/* Logo & Close Button */}
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+        {/* Logo Section */}
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center h-16 shrink-0">
           <h1 className="text-xl font-bold text-gray-800 tracking-tight">
             FindMe<span className="text-teal-600">Work</span>
           </h1>
@@ -64,7 +70,7 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Menu Items */}
+        {/* Menu Items (Scrollable area) */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
@@ -72,22 +78,22 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setIsOpen(false)} 
+                onClick={handleLinkClick} 
                 className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all ${
                   isActive
-                    ? "bg-gray-100 text-teal-700"
+                    ? "bg-teal-50 text-teal-700 border-r-4 border-teal-600"
                     : "text-gray-500 hover:bg-gray-50 hover:text-black"
                 }`}
               >
-                <item.icon size={18} className={isActive ? "text-teal-600" : ""} />
+                <item.icon size={20} className={isActive ? "text-teal-600" : "text-gray-400"} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
 
-        {/* Logout Button */}
-        <div className="p-4 border-t border-gray-100">
+        {/* Logout Button (Fixed at bottom) */}
+        <div className="p-4 border-t border-gray-100 shrink-0">
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="flex items-center gap-3 px-4 py-3 w-full text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-all"
@@ -96,7 +102,7 @@ export default function Sidebar() {
             Sign Out
           </button>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

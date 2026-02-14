@@ -3,37 +3,57 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react'; // Import useSession
 import { 
   Users, Search, Filter, Mail, MapPin, 
-  Linkedin, Target, ChevronLeft, Loader2, Lock, Unlock, Shield
+  Linkedin, Target, ChevronLeft, Loader2, Lock, Unlock, Shield, AlertTriangle
 } from 'lucide-react';
 
 export default function UsersPage() {
+  const { data: session, status } = useSession(); // Get session data
+  const router = useRouter();
+
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'blocked'>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const router = useRouter();
+  // 1. Authorization Check & Fetch Users
+  useEffect(() => {
+    // Wait for session to load
+    if (status === 'loading') return;
 
-  // 1. Fetch Users
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('/api/admin/users');
-      const data = await res.json();
-      if (data.success) {
-        console.log("Users fetched:", data.data); 
-        setUsers(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    } finally {
-      setLoading(false);
+    // Check if user is authenticated and is a super_admin
+    const isSuperAdmin = (session?.user as any)?.role === 'super_admin';
+
+    if (status === 'unauthenticated' || !isSuperAdmin) {
+        // Redirect if not authorized
+        // You might want to show an access denied message instead of redirecting immediately 
+        // to avoid confusion, but redirecting is safer.
+        // For better UX, let's just return here and render the Access Denied UI below.
+        setLoading(false); 
+        return;
     }
-  };
 
-  useEffect(() => { fetchUsers(); }, []);
+    const fetchUsers = async () => {
+        try {
+          const res = await fetch('/api/admin/users');
+          const data = await res.json();
+          if (data.success) {
+            console.log("Users fetched:", data.data); 
+            setUsers(data.data);
+          }
+        } catch (error) {
+          console.error("Error fetching users:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+    fetchUsers();
+
+  }, [status, session]); // Dependency array ensures this runs when session loads
 
   // 2. 🔥 BLOCK LOGIC (Stops Propagation)
   const handleStatusUpdate = async (e: React.MouseEvent, userId: string, currentStatus: boolean) => {
@@ -93,6 +113,41 @@ export default function UsersPage() {
     return matchesSearch;
   });
 
+  // --- RENDER STATES ---
+
+  // Loading State
+  if (status === 'loading' || (loading && (session?.user as any)?.role === 'super_admin')) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+              <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="animate-spin text-teal-600" size={40} />
+                  <p className="text-slate-500 font-bold">Verifying Access...</p>
+              </div>
+          </div>
+      );
+  }
+
+  // Access Denied State (For Non-Super Admins)
+  if ((session?.user as any)?.role !== 'super_admin') {
+      return (
+        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+            <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-center">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <AlertTriangle className="text-red-500" size={32} />
+                </div>
+                <h1 className="text-2xl font-black text-slate-900 mb-2">Access Restricted</h1>
+                <p className="text-slate-500 mb-8 leading-relaxed">
+                    This directory contains sensitive user data and is restricted to <strong>Super Administrators</strong> only.
+                </p>
+                <Link href="/dashboard" className="block w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20">
+                    Return to Dashboard
+                </Link>
+            </div>
+        </div>
+      );
+  }
+
+  // Success State (Super Admin Only)
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-10 font-sans text-slate-900">
       
@@ -140,9 +195,7 @@ export default function UsersPage() {
 
       {/* USERS GRID */}
       <div className="max-w-7xl mx-auto">
-        {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-teal-600" size={40} /></div>
-        ) : filteredUsers.length > 0 ? (
+        {filteredUsers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredUsers.map((user) => (
               <div 

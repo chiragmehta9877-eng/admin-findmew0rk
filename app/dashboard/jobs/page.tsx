@@ -5,24 +5,31 @@ import { useSession } from 'next-auth/react';
 import { 
   FiTrash2, FiExternalLink, FiRefreshCw, FiSearch, FiChevronLeft, FiChevronRight, 
   FiFilter, FiEdit, FiPlus, FiUser, FiBarChart2, FiX, FiActivity, FiMousePointer, FiPieChart,
-  FiShield, FiCheckCircle, FiXCircle, FiBriefcase, FiLock, FiSave 
+  FiShield, FiCheckCircle, FiXCircle, FiBriefcase, FiLock, FiSave, FiLayers, FiGlobe, FiZap 
 } from 'react-icons/fi';
-import { FaLinkedin, FaTwitter, FaLayerGroup } from 'react-icons/fa';
+import { FaLinkedin, FaTwitter } from 'react-icons/fa';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, Cell, Legend 
+  ResponsiveContainer, Cell 
 } from 'recharts';
 
 // 🔥 CONFIG: Live Frontend URL
 const FRONTEND_URL = 'https://findmew0rk.com'; 
 
+// 🔥 UPDATED CATEGORIES
 const ALL_CATEGORIES = [
-  
-     { label: "All Jobs", value: "job" },
-      { label: "Internships", value: "internship" },
-      { label: "Freelance", value: "freelance" },
-      { label: "Software Engineer", value: "Developer" },
-      { label: "Data Science & AI", value: "Data" },
+   { label: "IT & Software", value: "software" },
+   { label: "Finance & Accounting", value: "finance" },
+   { label: "Business & Management", value: "management" },
+   { label: "Human Resources", value: "hr" },
+   { label: "Sales & Marketing", value: "marketing" },
+   { label: "ESG & Sustainability", value: "esg" },
+   { label: "E-Commerce", value: "commerce" },
+   { label: "Design & Architecture", value: "design" },
+   { label: "Research & Analytics", value: "research" },
+   { label: "Internships", value: "internship" },
+   { label: "Freelance", value: "freelance" },
+   { label: "Others", value: "other" }
 ];
 
 export default function SuperAdminDashboard() {
@@ -35,6 +42,7 @@ export default function SuperAdminDashboard() {
   const [selectedJobAnalytics, setSelectedJobAnalytics] = useState<any>(null);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
   const [filterSource, setFilterSource] = useState('all'); 
   const [filterCategory, setFilterCategory] = useState('All Categories');
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,7 +62,7 @@ export default function SuperAdminDashboard() {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/jobs');
+      const res = await fetch('/api/jobs?limit=10000');
       const data = await res.json();
       if (data.success) setJobs(data.data);
     } catch (error) { console.error("Error fetching jobs:", error); }
@@ -72,13 +80,12 @@ export default function SuperAdminDashboard() {
     setLoading(false);
   };
 
-  // 🔥 FIX: Header Added for Delete Job
   const handleDeleteJob = async (id: string) => {
     if (!confirm("Delete this job?")) return;
     try {
       const res = await fetch('/api/jobs', { 
         method: 'DELETE', 
-        headers: { 'Content-Type': 'application/json' }, // Fix applied
+        headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({ id }) 
       });
       if (res.ok) setJobs(jobs.filter((job) => job._id !== id));
@@ -142,14 +149,13 @@ export default function SuperAdminDashboard() {
     } catch (error) { alert("Failed to create user"); }
   };
 
-  // 🔥 FIX: Header Added for User Update
   const handleUserUpdate = async (id: string, field: string, value: any) => {
     const originalUsers = [...users];
     setUsers(users.map(u => u._id === id ? { ...u, [field]: value } : u));
     try {
       const res = await fetch('/api/users', { 
         method: 'PATCH', 
-        headers: { 'Content-Type': 'application/json' }, // Fix applied
+        headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({ id, [field]: value }) 
       });
       if (!res.ok) throw new Error("Failed");
@@ -159,13 +165,12 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  // 🔥 FIX: Header Added for Delete User
   const handleDeleteUser = async (id: string) => {
     if (!confirm("Delete User? Cannot be undone.")) return;
     try {
       const res = await fetch('/api/users', { 
         method: 'DELETE', 
-        headers: { 'Content-Type': 'application/json' }, // Fix applied
+        headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({ id }) 
       });
       if (res.ok) setUsers(users.filter(u => u._id !== id));
@@ -190,8 +195,33 @@ export default function SuperAdminDashboard() {
       job.job_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.employer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.updated_by?.toLowerCase().includes(searchTerm.toLowerCase());
+    
     const matchesSource = filterSource === 'all' ? true : job.source === filterSource;
-    const matchesCategory = filterCategory === 'All Categories' ? true : (job.category === filterCategory);
+    
+    let matchesCategory = true;
+    if (filterCategory !== 'All Categories') {
+        const dbCat = (job.category || "").toLowerCase();
+        const selectedCatValue = filterCategory;
+
+        const validDbCategories: Record<string, string[]> = {
+            'software': ['software', 'developer', 'engineer', 'it', 'tech', 'data', 'ai'],
+            'finance': ['finance', 'account', 'banking', 'invest'],
+            'management': ['management', 'manager', 'product', 'project', 'business'],
+            'hr': ['hr', 'human', 'recruit', 'talent'],
+            'marketing': ['marketing', 'sales', 'growth', 'brand'],
+            'esg': ['esg', 'sustain', 'climate', 'environment', 'green'],
+            'commerce': ['commerce', 'shop', 'amazon', 'logistics'],
+            'design': ['design', 'ui', 'ux', 'creative', 'art'],
+            'research': ['research', 'analy', 'scientist', 'economist'],
+            'internship': ['intern'],
+            'freelance': ['freelance'],
+            'other': ['other', 'general', 'admin', 'support']
+        };
+
+        const allowedCats = validDbCategories[selectedCatValue] || [selectedCatValue];
+        matchesCategory = allowedCats.some(cat => dbCat.includes(cat));
+    }
+        
     return matchesSearch && matchesSource && matchesCategory;
   });
 
@@ -202,82 +232,94 @@ export default function SuperAdminDashboard() {
   useEffect(() => { setCurrentPage(1); }, [searchTerm, filterSource, filterCategory]);
 
   return (
-    <div className="p-4 md:p-6 bg-slate-50 min-h-screen font-sans relative">
+    <div className="p-6 bg-[#f8f9fa] min-h-screen font-sans relative">
+      <div className="max-w-7xl mx-auto">
       
-      {/* --- HEADER & TABS --- */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+      {/* --- HEADER --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Super Admin Dashboard</h1>
-          <p className="text-slate-500 text-xs md:text-sm">Manage Jobs, Analytics & User Permissions</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
+          <p className="text-slate-500 text-sm">System Overview & Management</p>
         </div>
         
         {/* TABS */}
-        <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm w-full lg:w-auto overflow-x-auto no-scrollbar">
+        <div className="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
             <button 
                 onClick={() => setActiveTab('jobs')}
-                className={`flex-1 lg:flex-none whitespace-nowrap flex items-center justify-center gap-2 px-6 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'jobs' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-5 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'jobs' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-gray-50'}`}
             >
-                <FiBriefcase /> Manage Jobs
+                <FiBriefcase /> Jobs
             </button>
             <button 
                 onClick={() => setActiveTab('users')}
-                className={`flex-1 lg:flex-none whitespace-nowrap flex items-center justify-center gap-2 px-6 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'users' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:text-purple-600'}`}
+                className={`px-5 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'users' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-purple-600 hover:bg-gray-50'}`}
             >
-                <FiShield /> Manage Users
+                <FiShield /> Users
             </button>
         </div>
       </div>
 
-      {/* ========================================================== */}
-      {/* 🔥 TAB 1: JOBS MANAGEMENT */}
-      {/* ========================================================== */}
+      {/* JOBS TAB */}
       {activeTab === 'jobs' && (
         <>
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col xl:flex-row gap-4 justify-between items-center">
-                
-                {/* Source Filter */}
-                <div className="flex bg-slate-100 p-1 rounded-lg w-full xl:w-auto overflow-x-auto no-scrollbar">
-                    <button onClick={() => setFilterSource('all')} className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${filterSource === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><FaLayerGroup /> All</button>
-                    <button onClick={() => setFilterSource('linkedin')} className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${filterSource === 'linkedin' ? 'bg-[#0a66c2] text-white shadow-sm' : 'text-slate-500 hover:text-[#0a66c2]'}`}><FaLinkedin /> LinkedIn</button>
-                    <button onClick={() => setFilterSource('twitter')} className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${filterSource === 'twitter' ? 'bg-black text-white shadow-sm' : 'text-slate-500 hover:text-black'}`}><FaTwitter /> Twitter</button>
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 mb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                <div className="lg:col-span-4 relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Search jobs, companies..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-slate-200 outline-none text-sm transition-all" 
+                    />
                 </div>
-
-                {/* Actions & Search */}
-                <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <button onClick={fixDatabaseLinks} className="flex-1 md:flex-none bg-orange-50 text-orange-600 px-3 py-2 rounded-lg font-bold border border-orange-200 hover:bg-orange-100 text-xs transition-colors whitespace-nowrap">⚠️ Fix Links</button>
-                        <Link href="/dashboard/jobs/create" className="flex-1 md:flex-none">
-                            <button className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 font-bold transition-all shadow-lg active:scale-95 text-sm whitespace-nowrap"><FiPlus size={16} /> Post Job</button>
-                        </Link>
-                    </div>
-                    
-                    <div className="relative w-full md:w-auto">
-                        <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full md:w-40 pl-10 pr-4 py-2 bg-slate-50 border border-gray-200 rounded-lg focus:outline-none text-sm text-slate-700 font-medium cursor-pointer appearance-none truncate">
-                            {ALL_CATEGORIES.map((cat, i) => (<option key={i} value={cat.value}>{cat.label}</option>))}
-                        </select>
-                    </div>
-                    
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <div className="relative w-full md:w-56">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-gray-200 rounded-lg focus:outline-none text-sm" />
-                        </div>
-                        <button onClick={fetchJobs} className="bg-white border border-gray-200 p-2 rounded-lg hover:bg-gray-50 text-slate-600"><FiRefreshCw className={loading ? "animate-spin" : ""}/></button>
-                    </div>
+                <div className="lg:col-span-3 relative">
+                    <FiLayers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <select 
+                        value={filterCategory} 
+                        onChange={(e) => setFilterCategory(e.target.value)} 
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none text-sm text-slate-700 cursor-pointer appearance-none"
+                    >
+                        <option value="All Categories">All Categories</option>
+                        {ALL_CATEGORIES.map((cat, i) => (<option key={i} value={cat.value}>{cat.label}</option>))}
+                    </select>
+                </div>
+                <div className="lg:col-span-2 relative">
+                    <FiGlobe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <select 
+                        value={filterSource} 
+                        onChange={(e) => setFilterSource(e.target.value)} 
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none text-sm text-slate-700 cursor-pointer appearance-none"
+                    >
+                        <option value="all">All Sources</option>
+                        <option value="manual">Manual / Web</option>
+                        <option value="twitter">Twitter (X)</option>
+                        <option value="linkedin">LinkedIn</option>
+                    </select>
+                </div>
+                <div className="lg:col-span-3 flex justify-end gap-2">
+                    <button onClick={fetchJobs} className="p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-slate-600 transition-colors" title="Refresh Data">
+                        <FiRefreshCw className={loading ? "animate-spin" : ""}/>
+                    </button>
+                    <button onClick={fixDatabaseLinks} className="px-3 py-2.5 bg-white border border-orange-200 text-orange-600 rounded-lg hover:bg-orange-50 font-bold text-xs transition-colors whitespace-nowrap">
+                        Fix Links
+                    </button>
+                    <Link href="/dashboard/jobs/create" className="flex-1">
+                        <button className="w-full h-full flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-lg hover:bg-slate-800 font-bold transition-all shadow-sm text-sm">
+                            <FiPlus size={16} /> Post Job
+                        </button>
+                    </Link>
                 </div>
             </div>
 
-            {/* Jobs Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 border-b border-gray-200 text-slate-900 font-bold uppercase text-xs tracking-wider">
+                        <thead className="bg-slate-50 border-b border-gray-200 text-slate-800 font-bold uppercase text-xs tracking-wider">
                         <tr>
                             <th className="p-4 pl-6">Title</th>
-                            <th className="p-4 text-center">Analytics</th>
-                            <th className="p-4">Updated By</th>
+                            <th className="p-4 text-center">Stats</th>
+                            <th className="p-4">Author</th>
                             <th className="p-4">Company</th>
                             <th className="p-4">Source</th>
                             <th className="p-4">Date</th>
@@ -289,28 +331,45 @@ export default function SuperAdminDashboard() {
                         ) : currentJobs.length === 0 ? ( <tr><td colSpan={7} className="p-10 text-center text-slate-500">No jobs found.</td></tr>
                         ) : currentJobs.map((job: any) => (
                             <tr key={job._id} className="hover:bg-slate-50/80 transition duration-150">
-                            <td className="p-4 pl-6 font-medium text-slate-800 max-w-xs truncate" title={job.job_title}>{job.job_title}</td>
-                            <td className="p-4 text-center">
-                                <button onClick={() => handleOpenAnalytics(job)} className="p-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors group relative" title="View Real-time Stats"><FiBarChart2 size={18} /></button>
+                            <td className="p-4 pl-6 font-semibold text-slate-900 max-w-xs truncate" title={job.job_title}>
+                                {job.job_title}
+                                {job.isSpotlight && (
+                                    <span className="ml-2 inline-flex items-center gap-1 text-[9px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200 font-bold">
+                                        <FiZap size={8} fill="currentColor" /> SPOTLIGHT
+                                    </span>
+                                )}
                             </td>
-                            <td className="p-4"><span className="flex items-center gap-1 text-slate-500 text-xs font-bold border border-slate-200 bg-slate-50 px-2 py-1 rounded-full w-fit whitespace-nowrap"><FiUser size={12} /> {job.updated_by || 'System'}</span></td>
+                            <td className="p-4 text-center">
+                                <button onClick={() => handleOpenAnalytics(job)} className="p-1.5 px-3 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-md text-xs font-bold transition-colors">
+                                    <FiBarChart2 className="inline mr-1"/> View
+                                </button>
+                            </td>
+                            <td className="p-4"><span className="flex items-center gap-1 text-slate-500 text-xs bg-slate-50 px-2 py-1 rounded-full w-fit whitespace-nowrap border border-slate-100"><FiUser size={12} /> {job.updated_by || 'System'}</span></td>
                             <td className="p-4 max-w-[150px] truncate">{job.employer_name}</td>
-                            <td className="p-4"><span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${job.source === 'twitter' ? 'bg-black text-white' : 'bg-[#0a66c2] text-white'}`}>{job.source === 'twitter' ? <FaTwitter /> : <FaLinkedin />} {job.source}</span></td>
+                            <td className="p-4">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide border ${
+                                    job.source === 'twitter' ? 'bg-black text-white border-black' : 
+                                    job.source === 'linkedin' ? 'bg-[#0077b5] text-white border-[#0077b5]' : 
+                                    'bg-gray-100 text-gray-600 border-gray-200'
+                                }`}>
+                                    {job.source === 'twitter' && <FaTwitter />} 
+                                    {job.source}
+                                </span>
+                            </td>
                             <td className="p-4 text-xs font-mono text-slate-500">{new Date(job.posted_at).toLocaleDateString('en-GB')}</td>
                             <td className="p-4 pr-6 text-right flex justify-end gap-2">
-                                <a href={getJobPageLink(job)} target="_blank" className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"><FiExternalLink size={16} /></a>
-                                <Link href={`/dashboard/jobs/edit/${job._id}`}><button className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"><FiEdit size={16} /></button></Link>
-                                <button onClick={() => handleDeleteJob(job._id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"><FiTrash2 size={16} /></button>
+                                <a href={getJobPageLink(job)} target="_blank" className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"><FiExternalLink size={16} /></a>
+                                <Link href={`/dashboard/jobs/edit/${job._id}`}><button className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"><FiEdit size={16} /></button></Link>
+                                <button onClick={() => handleDeleteJob(job._id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"><FiTrash2 size={16} /></button>
                             </td>
                             </tr>
                         ))}
                         </tbody>
                     </table>
                 </div>
-                {/* Pagination */}
                 {!loading && filteredJobs.length > itemsPerPage && (
                 <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 bg-slate-50 gap-4">
-                    <span className="text-xs text-slate-500 order-2 sm:order-1">Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredJobs.length)}</span>
+                    <span className="text-xs text-slate-500 order-2 sm:order-1">Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredJobs.length)} of {filteredJobs.length}</span>
                     <div className="flex gap-2 order-1 sm:order-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"><FiChevronLeft size={16} /></button>
                     <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"><FiChevronRight size={16} /></button>
@@ -321,9 +380,7 @@ export default function SuperAdminDashboard() {
         </>
       )}
 
-      {/* ========================================================== */}
-      {/* 🔥 TAB 2: USERS MANAGEMENT */}
-      {/* ========================================================== */}
+      {/* USERS TAB */}
       {activeTab === 'users' && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
            {/* @ts-ignore */}
@@ -363,9 +420,10 @@ export default function SuperAdminDashboard() {
                                     <tr key={user._id} className="hover:bg-slate-50/80 transition">
                                     <td className="p-4 pl-6">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs shrink-0">{user.name.charAt(0).toUpperCase()}</div>
+                                            {/* 🔥 FIX: Defensive check for user.name */}
+                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs shrink-0">{(user.name || "U").charAt(0).toUpperCase()}</div>
                                             <div>
-                                                <div className="font-bold text-slate-800">{user.name}</div>
+                                                <div className="font-bold text-slate-800">{user.name || "Unknown User"}</div>
                                                 <div className="text-xs text-slate-500">{user.email}</div>
                                             </div>
                                         </div>
@@ -410,7 +468,7 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* 🔥 ANALYTICS MODAL (Full Recharts Code) */}
+      {/* Analytics Modal */}
       {showAnalyticsModal && selectedJobAnalytics && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -488,7 +546,7 @@ export default function SuperAdminDashboard() {
             </div>
         </div>
       )}
-
+      </div>
     </div>
   );
 }

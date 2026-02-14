@@ -1,14 +1,30 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+// Interface definition
 export interface ISetting extends Document {
-  name: string;
-  isEnabled: boolean;
+  status: {
+    production: boolean;
+    netlify: boolean;
+    localhost: boolean;
+  };
+  maintenanceMessage: string;
 }
 
-const SettingSchema: Schema = new Schema({
-  name: { type: String, required: true, unique: true }, // e.g., "maintenance_mode"
-  isEnabled: { type: Boolean, default: false },
-});
+const SettingSchema = new Schema({
+  // Hum seedha root level pe 'status' rakhenge
+  status: {
+    production: { type: Boolean, default: false },
+    netlify: { type: Boolean, default: false },
+    localhost: { type: Boolean, default: false },
+  },
+  maintenanceMessage: { type: String, default: "We are currently upgrading." },
+}, { timestamps: true });
 
-const Setting: Model<ISetting> = mongoose.models.Setting || mongoose.model<ISetting>("Setting", SettingSchema);
+// 🔥 PURANA CACHE DELETE KARNA ZARURI HAI
+if (mongoose.models.Setting) {
+  delete mongoose.models.Setting;
+}
+
+const Setting: Model<ISetting> = mongoose.model<ISetting>("Setting", SettingSchema);
+
 export default Setting;

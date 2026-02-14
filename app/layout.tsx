@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers"; // 👈 Import This
+import { Providers } from "./providers";
+import MainLayout from "@/components/MainLayout"; 
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,11 +17,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        {/* 👇 Wrap everything inside Providers */}
+    // 🔥 FIX 1: 'h-full' added to html
+    <html lang="en" className="h-full">
+      
+      {/* 🔥 FIX 2: 'h-full' & 'overflow-hidden' added to body.
+          यह Browser के Main Scrollbar को जबरदस्ती हटा देगा। 
+      */}
+      <body className={`${inter.className} h-full overflow-hidden bg-gray-50`}>
         <Providers>
-            {children}
+            <MainLayout>
+                {children}
+            </MainLayout>
         </Providers>
       </body>
     </html>

@@ -1,7 +1,23 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiSave, FiArrowLeft, FiLoader, FiPlusCircle } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiLoader, FiPlusCircle, FiExternalLink } from 'react-icons/fi';
+
+// 🔥 Standardized Categories (Matches Frontend Filters)
+const JOB_CATEGORIES = [
+  { name: "IT & Software", value: "software" },
+  { name: "Finance & Accounting", value: "finance" },
+  { name: "Business & Management", value: "management" },
+  { name: "Human Resources", value: "hr" },
+  { name: "Sales & Marketing", value: "marketing" },
+  { name: "ESG & Sustainability", value: "esg" },
+  { name: "E-Commerce", value: "commerce" },
+  { name: "Design & Architecture", value: "design" },
+  { name: "Research & Analytics", value: "research" },
+  { name: "Internships", value: "internship" },
+  { name: "Freelance", value: "freelance" },
+  { name: "Other / General", value: "other" },
+];
 
 export default function CreateJob() {
   const router = useRouter();
@@ -10,15 +26,19 @@ export default function CreateJob() {
   const [formData, setFormData] = useState({
     job_title: '',
     employer_name: '',
-    category: 'General',
-    source: 'linkedin', 
+    category: 'software', // Default
+    source: 'manual', 
     apply_link: '',
-    text: '' 
+    original_post_link: '', // 🔥 New Field
+    text: '',
+    isSpotlight: false // 🔥 New Field
   });
 
   const handleChange = (e: any) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    // Handle checkbox vs text input
+    const val = type === 'checkbox' ? checked : value;
+    setFormData(prev => ({ ...prev, [name]: val }));
   };
 
   const handleSubmit = async (e: any) => {
@@ -26,10 +46,13 @@ export default function CreateJob() {
     setSaving(true);
     
     try {
-      // 🔥 FIX: 'updated_by' bhejna padega tabhi System ki jagah Admin aayega
       const payload = {
         ...formData,
-        updated_by: 'Admin' // <--- Yahan apna naam ya 'Admin' likho
+        // Map fields correctly for DB schema
+        job_url: formData.original_post_link, 
+        url: formData.apply_link,
+        link: formData.apply_link,
+        updated_by: 'Admin'
       };
 
       const res = await fetch('/api/jobs', {
@@ -43,7 +66,8 @@ export default function CreateJob() {
         router.push('/dashboard/jobs'); 
         router.refresh();
       } else {
-        alert("Failed to create job.");
+        const err = await res.json();
+        alert("Failed: " + err.error);
       }
     } catch (error) {
       console.error(error);
@@ -82,29 +106,69 @@ export default function CreateJob() {
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Category</label>
               <select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                  <option value="ESG">ESG & Sustainability</option>
-                  <option value="Developer">Software Engineer</option>
-                  <option value="Internship">Internships</option>
-                  <option value="Product">Product Management</option>
-                  <option value="Data">Data Science & AI</option>
-                  <option value="Business">Business & Sales</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="General">General/Other</option>
+                  {JOB_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>{cat.name}</option>
+                  ))}
               </select>
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Source Label</label>
               <select name="source" value={formData.source} onChange={handleChange} className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                  <option value="manual">Manual / Direct</option>
                   <option value="linkedin">LinkedIn</option>
                   <option value="twitter">Twitter</option>
-                  <option value="manual">Manual / Direct</option>
               </select>
             </div>
           </div>
 
-          <div>
-             <label className="block text-sm font-bold text-slate-700 mb-2">Apply Link / URL *</label>
-             <input type="url" name="apply_link" value={formData.apply_link} onChange={handleChange} placeholder="https://company.com/careers/apply/123" className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-medium" required />
+          {/* 🔥 SPOTLIGHT TOGGLE SECTION */}
+          <div className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <div>
+                <h3 className="font-bold text-yellow-800 flex items-center gap-2">
+                ⚡ Spotlight Job
+                </h3>
+                <p className="text-xs text-yellow-600">
+                Enable this to make the job shine on the frontend immediately.
+                </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                type="checkbox" 
+                name="isSpotlight"
+                checked={formData.isSpotlight} 
+                onChange={handleChange} 
+                className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Apply Link / Email *</label>
+                <input 
+                    type="text" 
+                    name="apply_link" 
+                    value={formData.apply_link} 
+                    onChange={handleChange} 
+                    placeholder="mailto:hr@co.com or https://..." 
+                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-600 font-medium" 
+                    required 
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                   Original Post Link <FiExternalLink />
+                </label>
+                <input 
+                  type="text" 
+                  name="original_post_link" 
+                  value={formData.original_post_link} 
+                  onChange={handleChange} 
+                  placeholder="https://x.com/..."
+                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-600" 
+                />
+            </div>
           </div>
 
           <div>

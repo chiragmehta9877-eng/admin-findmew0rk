@@ -27,6 +27,9 @@ export interface IJob extends Document {
   // Analytics Fields
   views: number;
   clicks: number;
+
+  // 🔥 SPOTLIGHT FEATURE
+  isSpotlight?: boolean;
 }
 
 const JobSchema: Schema = new Schema(
@@ -54,12 +57,19 @@ const JobSchema: Schema = new Schema(
     posted_at: { type: Date, default: Date.now },
     updated_by: { type: String, default: 'System' },
 
-    // Analytics
+    // Analytics (Initialized to 0)
     views: { type: Number, default: 0 },
     clicks: { type: Number, default: 0 },
+
+    // 🔥 SPOTLIGHT FIELD
+    isSpotlight: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    strict: false // 👈 Keeps data safe even if field names mismatch slightly
+  }
 );
 
+// Prevent model overwrite error during Next.js hot reload
 const Job: Model<IJob> = mongoose.models.Job || mongoose.model<IJob>("Job", JobSchema);
 export default Job;

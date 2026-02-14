@@ -2,17 +2,46 @@ import React from 'react';
 import { connectToDB } from "@/lib/mongodb";
 import Contact from "@/models/Contact";
 import Link from 'next/link';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
-// 👇 Updated Import path based on where you put the component
+import { ArrowLeft, MessageSquare, Lock } from 'lucide-react'; // 🔥 Lock Icon Added
 import EnquiriesList from '@/components/EnquiriesList'; 
+
+// 🔥 AUTH IMPORTS (Server Side)
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // 👈 Check this path matches your project
 
 export const dynamic = 'force-dynamic';
 
 export default async function MessagesPage() {
+  // 1. 🔥 SERVER SIDE AUTH CHECK
+  const session = await getServerSession(authOptions);
+  
+  // Check specifically for 'super_admin' role
+  const isSuperAdmin = (session?.user as any)?.role === 'super_admin';
+
+  // 2. 🛑 IF NOT SUPER ADMIN - SHOW RESTRICTED SCREEN
+  if (!isSuperAdmin) {
+    return (
+        <div className="min-h-screen w-full bg-slate-50 flex flex-col items-center justify-center text-center p-6 font-sans">
+            <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 max-w-md w-full">
+                <div className="mx-auto bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+                    <Lock size={32} className="text-red-500" />
+                </div>
+                <h1 className="text-2xl font-extrabold text-slate-900 mb-2">Access Restricted</h1>
+                <p className="text-slate-500 mb-8 text-sm leading-relaxed">
+                    This page contains sensitive user data. <br/> Only <strong>Super Admins</strong> can view enquiries.
+                </p>
+                <Link href="/dashboard" className="block w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all">
+                    Back to Dashboard
+                </Link>
+            </div>
+        </div>
+    );
+  }
+
+  // 3. ✅ IF SUPER ADMIN - FETCH DATA
   await connectToDB();
   
   // Fetch messages (Newest First)
-  // .lean() is important for performance and serialization
   const rawMessages = await Contact.find({}).sort({ createdAt: -1 }).lean();
   
   // Convert _id and dates to string to avoid serialization warnings

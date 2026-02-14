@@ -1,191 +1,235 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react'; 
+import { useRouter } from 'next/navigation';
 import { 
-  FiSettings, FiAlertTriangle, FiUserPlus, FiPlus, FiSave, FiX, FiLock, FiCheckCircle
-} from 'react-icons/fi';
+  Shield, 
+  Server, 
+  Activity, 
+  AlertTriangle, 
+  CheckCircle, 
+  Loader2,
+  Lock,
+  Globe,
+  Layout,
+  Monitor
+} from 'lucide-react';
+
+interface EnvStatus {
+    production: boolean;
+    netlify: boolean;
+    localhost: boolean;
+    [key: string]: boolean; 
+}
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [settingsLoading, setSettingsLoading] = useState(false);
-  
-  // Create User State
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'user' });
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
-  // 1. Fetch Initial Settings
+  // State
+  const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
+  // 1. Initial State
+  const [envStatus, setEnvStatus] = useState<EnvStatus>({
+      production: false,
+      netlify: false,
+      localhost: false
+  });
+
+  // Helper: Show Notification
+  const showNotification = (type: 'success' | 'error', text: string) => {
+    setNotification({ type, text });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  // 2. Fetch Settings & Security Check
   useEffect(() => {
-    // @ts-ignore
-    if (session?.user?.role === 'super_admin') {
-        fetch('/api/settings')
-            .then(res => res.json())
-            .then(data => { if(data.success) setMaintenanceMode(data.isEnabled); });
+    if (status === 'loading') return;
+
+    // 🔒 SECURITY GATE: Only Super Admin
+    if (status === 'unauthenticated' || (session?.user as any)?.role !== 'super_admin') {
+        router.push('/dashboard'); // Redirect unauthorized users
+        return;
     }
-  }, [session]);
+    
+    const fetchSettings = async () => {
+        try {
+            const res = await fetch('/api/settings', { cache: 'no-store' });
+            const data = await res.json();
 
-  // 2. Toggle Maintenance
-  const toggleMaintenance = async () => {
-      const newState = !maintenanceMode;
-      const confirmMsg = newState 
-          ? "🚨 DANGER: Are you sure you want to activate MAINTENANCE MODE? Users won't be able to access the site." 
-          : "Are you sure you want to make the site LIVE again?";
-      
-      if(!confirm(confirmMsg)) return;
+            if (data.success && data.status) {
+                setEnvStatus(prev => ({ ...prev, ...data.status }));
+            }
+        } catch (err) {
+            console.error("❌ Fetch Error:", err);
+            showNotification('error', 'Failed to load system settings');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      setMaintenanceMode(newState); // Optimistic Update
+    fetchSettings();
+  }, [status, session, router]);
+
+  // 3. Toggle Logic
+  const toggleEnvironment = async (key: string) => {
+      const currentVal = envStatus[key];
+      const newState = !currentVal; 
+
+      setEnvStatus(prev => ({ ...prev, [key]: newState }));
+
       try {
-          await fetch('/api/settings', {
+          const res = await fetch('/api/settings', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ isEnabled: newState })
+              body: JSON.stringify({ environment: key, isEnabled: newState })
           });
+
+          const responseData = await res.json();
+
+          if (!res.ok || !responseData.success) {
+              throw new Error(responseData.error || "Server failed");
+          }
+          
+          showNotification(
+            newState ? 'error' : 'success', 
+            `${key.toUpperCase()} is now ${newState ? 'UNDER MAINTENANCE 🛑' : 'LIVE 🟢'}`
+          );
+
       } catch (error) {
-          alert("Failed to update settings");
-          setMaintenanceMode(!newState); // Revert on error
+          console.error("❌ Save Failed:", error);
+          showNotification('error', 'Failed to save setting. Reverting...');
+          setEnvStatus(prev => ({ ...prev, [key]: currentVal })); 
       }
   };
 
-  // 3. Create User Logic
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if(!newUser.name || !newUser.email || !newUser.password) return alert("All fields required");
-
-    try {
-        const res = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newUser)
-        });
-        const data = await res.json();
-        
-        if(data.success) {
-            alert("✅ User Created Successfully!");
-            setShowCreateUserModal(false);
-            setNewUser({ name: '', email: '', password: '', role: 'user' }); 
-        } else {
-            alert("❌ Error: " + data.error);
-        }
-    } catch (error) { alert("Failed to create user"); }
-  };
-
-  // 🔒 ACCESS DENIED VIEW
-  // @ts-ignore
-  if (session?.user?.role !== 'super_admin') {
-      return (
-        <div className="flex flex-col items-center justify-center h-[80vh] bg-slate-50 text-center">
-            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 text-3xl shadow-sm border border-red-100">
-                <FiLock />
+  // 🟡 RENDER: LOADING / AUTH CHECK
+  if (status === 'loading' || loading) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="animate-spin text-indigo-600" size={40} />
+                <p className="text-slate-500 font-medium">Authenticating & Loading Settings...</p>
             </div>
-            <h3 className="text-2xl font-bold text-slate-800">Access Denied</h3>
-            <p className="text-slate-500 max-w-md mt-2">
-                This area is restricted to <strong>Super Admins</strong> only.
-            </p>
         </div>
-      );
+    );
   }
 
-  // ✅ MAIN SETTINGS UI
+  // 🟢 RENDER: DASHBOARD
   return (
-    <div className="p-8 bg-slate-50 min-h-screen font-sans">
-        
-        <div className="mb-8">
-            <h1 className="text-3xl font-extrabold text-slate-800 flex items-center gap-3">
-                <FiSettings className="text-slate-400" /> Platform Settings
-            </h1>
-            <p className="text-slate-500 mt-2">Manage global configurations and administrative access.</p>
+    <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans text-slate-900">
+       
+       {/* Toast Notification */}
+       {notification && (
+        <div className={`fixed top-6 right-6 px-6 py-4 rounded-xl shadow-2xl border flex items-center gap-3 animate-in slide-in-from-right z-50 ${
+          notification.type === 'success' ? 'bg-white border-green-200 text-green-700' : 'bg-white border-red-200 text-red-700'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle size={20}/> : <AlertTriangle size={20}/>}
+          <div>
+              <p className="font-bold text-sm">{notification.type === 'success' ? 'System Live' : 'Maintenance Alert'}</p>
+              <p className="text-xs opacity-90">{notification.text}</p>
+          </div>
         </div>
+      )}
 
-        <div className="max-w-4xl space-y-6">
-            
-            {/* 1. MAINTENANCE MODE CARD */}
-            <div className={`border rounded-2xl p-8 transition-all shadow-sm ${maintenanceMode ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <FiAlertTriangle className={maintenanceMode ? "text-red-600" : "text-slate-400"} />
-                            Maintenance Mode
-                        </h3>
-                        <p className="text-sm text-slate-600 mt-2 max-w-lg leading-relaxed">
-                            When enabled, the entire public website will show a <strong>"Under Maintenance"</strong> page. 
-                            Users will not be able to search or apply for jobs.
-                        </p>
-                    </div>
-                    
-                    <button 
-                        onClick={toggleMaintenance}
-                        className={`relative inline-flex h-9 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-4 focus:ring-offset-2 ${maintenanceMode ? 'bg-red-600 focus:ring-red-200' : 'bg-slate-300 focus:ring-slate-200'}`}
-                    >
-                        <span className={`inline-block h-7 w-7 transform rounded-full bg-white shadow-md transition-transform ${maintenanceMode ? 'translate-x-8' : 'translate-x-1'}`} />
-                    </button>
-                </div>
-                
-                {maintenanceMode && (
-                    <div className="mt-6 p-3 bg-red-100/50 rounded-lg border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2 animate-pulse">
-                        <FiAlertTriangle /> WEBSITE IS CURRENTLY OFFLINE FOR USERS
-                    </div>
-                )}
-            </div>
+       <div className="max-w-5xl mx-auto">
+           {/* Header Section */}
+           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+               <div>
+                   <div className="flex items-center gap-3 mb-2">
+                       <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold uppercase rounded-full tracking-wider">Admin Control</span>
+                       <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold uppercase rounded-full tracking-wider flex items-center gap-1">
+                           <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span> System Active
+                       </span>
+                   </div>
+                   <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                       <Shield className="text-indigo-600" size={36} /> 
+                       Command Center
+                   </h1>
+               </div>
+           </div>
 
-            {/* 2. CREATE USER CARD */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <FiUserPlus className="text-purple-600" />
-                            Create New Admin/User
-                        </h3>
-                        <p className="text-sm text-slate-500 mt-2 max-w-lg">
-                            Manually create an account with <strong>Email & Password</strong> access. 
-                            Useful for inviting team members who don't use Google Login.
-                        </p>
-                    </div>
-                    <button 
-                        onClick={() => setShowCreateUserModal(true)} 
-                        className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-slate-900/20 hover:scale-105 transition-transform flex items-center gap-2"
-                    >
-                        <FiPlus /> Add User
-                    </button>
-                </div>
-            </div>
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+               
+               {/* LEFT COL: Main Controls (Spans 2 columns) */}
+               <div className="lg:col-span-2 space-y-8">
+                   
+                   {/* Environment Control Card */}
+                   <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                       <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                           <div>
+                               <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                   <Server className="text-slate-400" size={20} />
+                                   Environment Status
+                               </h3>
+                               <p className="text-sm text-slate-500 mt-1">Toggle switches to enable/disable Maintenance Mode.</p>
+                           </div>
+                       </div>
+                       
+                       <div className="divide-y divide-slate-100">
+                           {[
+                               { id: 'production', label: 'Production', sub: 'findmew0rk.com', icon: Globe },
+                               { id: 'netlify', label: 'Staging Server', sub: 'netlify.app', icon: Layout },
+                               { id: 'localhost', label: 'Local Development', sub: 'localhost:3000', icon: Monitor },
+                           ].map((env) => (
+                               <div key={env.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                                   <div className="flex items-center gap-4">
+                                       <div className={`p-3 rounded-2xl ${envStatus[env.id] ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                           <env.icon size={24} />
+                                       </div>
+                                       <div>
+                                           <p className="font-bold text-lg text-slate-800">{env.label}</p>
+                                           <span className="text-xs text-slate-400 font-mono">
+                                               {env.sub}
+                                           </span>
+                                       </div>
+                                   </div>
 
-        </div>
+                                   <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto bg-slate-100 sm:bg-transparent p-3 sm:p-0 rounded-xl">
+                                           <div className="text-right">
+                                               <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status</p>
+                                               <p className={`text-sm font-bold ${envStatus[env.id] ? 'text-red-600' : 'text-green-600'}`}>
+                                                   {envStatus[env.id] ? 'MAINTENANCE' : 'LIVE'}
+                                               </p>
+                                           </div>
+                                           
+                                           <button 
+                                               onClick={() => toggleEnvironment(env.id)}
+                                               className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 ${
+                                                   envStatus[env.id] ? 'bg-red-500' : 'bg-slate-300'
+                                               }`}
+                                           >
+                                               <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300 ${
+                                                   envStatus[env.id] ? 'translate-x-7' : 'translate-x-1'
+                                               }`} />
+                                           </button>
+                                   </div>
+                               </div>
+                           ))}
+                       </div>
+                   </div>
+               </div>
 
-        {/* MODAL FOR CREATE USER */}
-        {showCreateUserModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                    <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                        <h3 className="text-xl font-bold text-slate-800">Create New User</h3>
-                        <button onClick={() => setShowCreateUserModal(false)} className="text-slate-400 hover:text-slate-600"><FiX size={24}/></button>
-                    </div>
-                    <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
-                            <input type="text" required className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-purple-200" placeholder="e.g. John Doe" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-                            <input type="email" required className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-purple-200" placeholder="e.g. john@example.com" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
-                            <input type="password" required className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-purple-200" placeholder="••••••••" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Assign Role</label>
-                            <select className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-purple-200 cursor-pointer" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                                <option value="user">User (No Admin Access)</option>
-                                <option value="admin">Admin (Limited Access)</option>
-                                <option value="super_admin">Super Admin (Full Access)</option>
-                            </select>
-                        </div>
-                        <button type="submit" className="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition-colors flex justify-center items-center gap-2 mt-4 shadow-lg shadow-purple-500/20"><FiSave /> Create Account</button>
-                    </form>
-                </div>
-            </div>
-        )}
-
+               {/* RIGHT COL: Admin Note */}
+               <div className="space-y-6">
+                   <div className="bg-slate-900 p-6 rounded-3xl shadow-lg text-white relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-4 opacity-10">
+                           <AlertTriangle size={100} />
+                       </div>
+                       <h4 className="font-bold text-white mb-2 relative z-10">Admin Note</h4>
+                       <p className="text-sm text-slate-400 relative z-10 leading-relaxed">
+                           <strong className="text-white">Red Toggle (ON):</strong> Site is in Maintenance Mode (Users see "Upgrading" screen).
+                           <br/><br/>
+                           <strong className="text-white">Grey Toggle (OFF):</strong> Site is LIVE (Users can access everything).
+                           <br/><br/>
+                           Changes reflect immediately.
+                       </p>
+                   </div>
+               </div>
+           </div>
+       </div>
     </div>
   );
 }
