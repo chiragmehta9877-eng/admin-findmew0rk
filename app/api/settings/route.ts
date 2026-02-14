@@ -13,7 +13,7 @@ export async function GET() {
     // DB se pehla document uthao
     let settings = await Setting.findOne();
 
-    // Agar nahi mila, toh naya banao
+    // Agar nahi mila, toh naya banao (Default values ke sath)
     if (!settings) {
         settings = await Setting.create({
             status: { production: false, netlify: false, localhost: false },
@@ -23,12 +23,13 @@ export async function GET() {
 
     return NextResponse.json({ 
         success: true, 
-        status: settings.status, 
+        status: settings.status || {}, 
         maintenanceMessage: settings.maintenanceMessage 
     });
 
   } catch (error) {
-    return NextResponse.json({ success: false, error: "Failed to fetch" }, { status: 500 });
+    console.error("GET Error:", error);
+    return NextResponse.json({ success: false, error: "Failed to fetch settings" }, { status: 500 });
   }
 }
 
@@ -42,20 +43,31 @@ export async function POST(req: Request) {
 
         // CASE A: Toggle Environment (Localhost/Prod)
         if (body.environment) {
-            // Seedha 'status.localhost' update karo
+            
+            // 🔥 FIX: Backticks ka use karein dynamic key ke liye
+            // Example: "status.localhost"
             const updateField = `status.${body.environment}`;
             
-            const updated = await Setting.findOneAndUpdate({}, {
-                $set: { [updateField]: body.isEnabled }
-            }, { new: true, upsert: true });
+            // MongoDB mein nested field update karne ke liye [updateField] syntax zaroori hai
+            const updated = await Setting.findOneAndUpdate(
+                {}, // Empty filter matlab pehla document
+                { 
+                    $set: { [updateField]: body.isEnabled } 
+                }, 
+                { new: true, upsert: true } // new: true returns updated doc, upsert creates if missing
+            );
 
             return NextResponse.json({ success: true, status: updated.status });
         }
 
-        return NextResponse.json({ success: false, error: "Invalid Request" }, { status: 400 });
+        return NextResponse.json({ success: false, error: "Invalid Request: 'environment' missing" }, { status: 400 });
 
     } catch (error) {
         console.error("Save Error:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+
+        // 🔥 FIX: TypeScript 'unknown' error fix
+        const message = error instanceof Error ? error.message : String(error);
+
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
